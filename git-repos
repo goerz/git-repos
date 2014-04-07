@@ -231,13 +231,13 @@ def show_repo(repo, options):
                 is_unmerged = True
 
             # decide on color
-            color = 'NORMAL'
-            if is_tracking_branch: color = 'TRACKING'
+            color = out.NORMAL
+            if is_tracking_branch: color = out.TRACKING
             if is_unmerged:
-                color = 'UNMERGED'
+                color = out.UNMERGED
                 if not is_tracking_branch:
                     # unmerged local branches would be lost by deleting REPO
-                    color = 'OUTOFSYNC'
+                    color = out.OUTOFSYNC
             if out_of_sync:
                 color = out.OUTOFSYNC
 
