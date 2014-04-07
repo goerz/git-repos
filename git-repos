@@ -1,0 +1,379 @@
+#!/usr/bin/env python
+############################################################################
+#    Copyright (C) 2014 by Michael Goerz                                   #
+#    http://michaelgoerz.net                                               #
+#                                                                          #
+#    This program is free software; you can redistribute it and/or modify  #
+#    it under the terms of the GNU General Public License as published by  #
+#    the Free Software Foundation; either version 3 of the License, or     #
+#    (at your option) any later version.                                   #
+#                                                                          #
+#    This program is distributed in the hope that it will be useful,       #
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of        #
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         #
+#    GNU General Public License for more details.                          #
+#                                                                          #
+#    You should have received a copy of the GNU General Public License     #
+#    along with this program; if not, write to the                         #
+#    Free Software Foundation, Inc.,                                       #
+#    59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             #
+############################################################################
+
+"""
+Show a summary for each repo listed in the file REPOLIST.
+
+If the PATH argument is given, only print those repos out of REPOLIST that
+are subfolders of PATH. If the REPOLIST file does not exists, find all repos
+that are subfolders of PATH.
+"""
+
+from subprocess import check_output, CalledProcessError, call
+from optparse import OptionParser
+import os
+import re
+import sys
+
+REPO_LIST = os.path.join(os.environ['HOME'], '.gitrepos')
+
+BRANCH_VV_RX = re.compile(r'''
+        [\s*]*
+        (\w+)              # group 1: branch name
+        \s+ [\da-f]+\s
+        (\[.*?\])?         # group 2: tracking branch info
+        .*''', re.X)
+
+
+class ColorPrinter:
+    """ ANSI color code table """
+
+    # standard colorscheme for light backgrounds (works pretty well on dark
+    # backgrounds, too, actually)
+    HEADER    = '\033[1m\033[30m'    # bold black
+    UNMERGED  = '\033[94m'           # blue
+    TRACKING  = '\033[32m'           # green
+    OUTOFSYNC = '\033[35m'           # purple
+    WARN      = '\033[35m'           # purple
+    FAIL      = '\033[1m\033[91m'    # bright red
+    ENDC      = '\033[0m'            # default color
+    NORMAL    = ENDC                 # default color
+
+    def __init__(self, colorscheme='light'):
+        if colorscheme != 'light':
+            raise NotImplementedError(
+            "Not color schemed available besides 'light'")
+
+
+    def disable_color(self):
+        """ Turn off all colors """
+        self.HEADER    = ''
+        self.UNMERGED  = ''
+        self.TRACKING  = ''
+        self.OUTOFSYNC = ''
+        self.WARN      = ''
+        self.FAIL      = ''
+        self.ENDC      = ''
+        self.NORMAL    = ''
+
+    def put(self, color, string):
+        """ Print str in the given color """
+        try:
+            # color can be the name of one of the class attributes ...
+            print getattr(self, color) + string + self.ENDC
+        except AttributeError:
+            if color[0] == '\033':
+                # ... or it can be an attribute directly
+                print color + string + self.ENDC
+            else:
+                print string
+
+
+def get_git_repos(path, verbosity=0):
+    """ Return list of all git directories that are subfolders of the given
+        path.
+
+        If verbosity is > 0, print found paths to the screen.
+        If verbosity is > 1, print all traversed paths to the screen
+    """
+    git_dirs = []
+    for directory in os.listdir(path):
+        dir_full_path = os.path.join(path, directory)
+        if (verbosity > 1):
+            print dir_full_path
+        if os.path.isdir(dir_full_path):
+            if directory == ".git":
+                git_dirs.append(os.path.abspath(path))
+                if verbosity > 0:
+                    print "Found %s" % os.path.abspath(path)
+            else:
+                git_dirs += get_git_repos(dir_full_path)
+    return git_dirs
+
+
+def show_repo(repo, options):
+    """ Show a summary of the repo at the given path """
+    out = ColorPrinter()
+    if options.no_color:
+        out.disable_color()
+    cwd = os.getcwd()
+    try:
+        os.chdir(repo)
+    except OSError:
+        out.put('FAIL', "   ERROR: Could not enter %s" % repo)
+        return
+
+    if options.fetch:
+        cmd = "git fetch --all -q 2>/dev/null"
+        code = call(cmd, shell=True)
+
+    # repo info
+    branches = [] # list of a all branch names
+    merged   = [] # list of all merged branch names
+    unmerged = [] # list of all unmerged branch names
+    stashes  = [] # list of all stashes
+    len_branchnames = 0 # length of longest branch name
+    repo_is_clean                    = True
+    repo_has_stashes                 = False
+    repo_has_remote                  = False
+    repo_has_unmerged_local_branches = False
+    repo_out_of_sync                 = False # any pushing / pulling needed?
+
+    # gather info:
+    try:
+        # 1) name of all branches
+        branches = check_output('git branch', shell=True).split()
+        branches.remove('*')
+        # 2) which branches are merged/unmerged
+        unmerged = check_output('git branch --no-merged', shell=True).split()
+        merged = check_output('git branch --merged', shell=True).split()
+        # 3) status of each branch in relation to its tracking branch
+        tracking_info = {}
+        branch_vv = check_output('git branch -vv', shell=True).split("\n")
+        # 4) working directory status
+        cmd = "git diff-index --quiet HEAD --ignore-submodules"
+        code = call(cmd, shell=True)
+        # 5) stashes
+        stashes = [stash.strip() for stash in
+                   check_output( "git stash list", shell=True).split("\n")
+                   if stash.strip() != ""]
+
+        if code != 0:
+            repo_is_clean = False
+        for line in branch_vv:
+            if (line.strip() == ''):
+                continue
+            try:
+                branch, info = BRANCH_VV_RX.match(line).groups()
+            except AttributeError:
+                continue
+                #raise Exception("line '%s' did not match BRANCH_VV_RX" % line)
+            if len(branch) > len_branchnames:
+                len_branchnames = len(branch)
+            if branch in branches:
+                if not info is None:
+                    tracking_info[branch] = info
+                    repo_has_remote = True
+                    if 'behind' in info:
+                        repo_out_of_sync = True
+                    if 'ahead' in info:
+                        repo_out_of_sync = True
+            else:
+                raise Exception("Unexpected branch name")
+    except CalledProcessError as msg:
+        out.put('FAIL', " ERROR for %s: %s" % (repo, msg))
+        return
+    if len(unmerged) > 0:
+        repo_has_unmerged_branches = True
+    if len(stashes) > 0:
+        repo_has_stashes = True
+
+    # output
+
+    print_output = False # should we print anything at all?
+    if not repo_is_clean:                print_output = True
+    if repo_has_stashes:                 print_output = True
+    if repo_out_of_sync:                 print_output = True
+    if repo_has_unmerged_local_branches: print_output = True
+    if options.all:
+        print_output = True
+    if options.remote and not repo_has_remote:
+        print_output = False
+    if options.local and repo_has_remote:
+        print_output = False
+
+    if print_output:
+
+        out_fmt1 = "    {:<%d}:  {:10}" % len_branchnames
+        out_fmt2 = "    {:<%d}:  {:10}  {}" % len_branchnames
+
+        out.put('NORMAL', "")
+        out.put('HEADER', repo)
+        if not repo_is_clean:
+            out.put('WARN', "    The repository has uncommitted changes")
+        if repo_has_stashes:
+            out.put('WARN', "    The repository has stashed changes: "
+                                 + "%d stash(es)" % len(stashes))
+            for stash in stashes:
+                out.put('NORMAL', "        %s" % stash)
+
+        for branch in branches:
+
+            # branch status
+            is_tracking_branch = False
+            out_of_sync = False # needs to push/pull
+            if branch in tracking_info:
+                is_tracking_branch = True
+                if 'behind' in tracking_info[branch]:
+                    out_of_sync = True
+                if 'ahead' in tracking_info[branch]:
+                    out_of_sync = True
+            is_unmerged = False
+            if branch in unmerged:
+                is_unmerged = True
+
+            # decide on color
+            color = 'NORMAL'
+            if is_tracking_branch: color = 'TRACKING'
+            if is_unmerged:
+                color = 'UNMERGED'
+                if not is_tracking_branch:
+                    # unmerged local branches would be lost by deleting REPO
+                    color = 'OUTOFSYNC'
+            if out_of_sync:
+                color = out.OUTOFSYNC
+
+            # print
+            merged_str = ""
+            if branch in merged:
+                merged_str = 'merged'
+            elif branch in unmerged:
+                merged_str = 'unmerged'
+            if branch in tracking_info:
+                out.put(color,
+                        out_fmt2.format(branch, merged_str,
+                                        tracking_info[branch]))
+            else:
+                out.put(color, out_fmt1.format(branch, merged_str))
+
+        if not repo_is_clean and options.status:
+            try:
+                if options.no_color:
+                    call("git -c color.status=false status", shell=True)
+                else:
+                    call("git status", shell=True)
+            except CalledProcessError as msg:
+                out.put('FAIL', " ERROR for %s: %s" % (repo, msg))
+
+    os.chdir(cwd)
+
+
+def main(argv=None):
+    """ Call show_repo for each repo in the REPO_LIST file """
+    if argv is None:
+        argv = sys.argv
+        arg_parser = OptionParser(
+        usage = "usage: %prog [OPTIONS] [PATH]",
+        description = __doc__[1:])
+        arg_parser.add_option(
+          '--no-color', action='store_true', dest='no_color',
+          default=False, help="Do not use color in output")
+        arg_parser.add_option(
+          '--fetch', action='store_true', dest='fetch',
+          default=False, help="Perform a fetch on each repository")
+        arg_parser.add_option(
+          '--status', action='store_true', dest='status',
+          default=False, help="Run 'git status' on unclean repositories")
+        arg_parser.add_option(
+          '--all', action='store_true', dest='all',
+          default=False, help="Report about all found git repos. By default, "
+          "only repos that are not clean, have stashes, local unmerged "
+          "branches, or are out of sync, are reported")
+        arg_parser.add_option(
+          '--remote', action='store_true', dest='remote',
+          default=False, help="Disregard all repos that do not have "
+          "least one remote defined")
+        arg_parser.add_option(
+          '--local', action='store_true', dest='local',
+          default=False, help="Disregard all repos that have any "
+          "remote defined")
+        arg_parser.add_option(
+          '--repolist', action='store', dest='repolist', default=REPO_LIST,
+          help="Textfile that contains the path of all your git repositories "
+          "Defaults to "+REPO_LIST)
+        arg_parser.add_option(
+          '--build-repolist', action='store_true', dest='build_repolist',
+          default=False, help="Overwrite the REPOLIST (see --repolist option) "
+          "with a list of all git repos that are subfolders of PATH. "
+          "Exit after the repolist has been written. This might take a long "
+          "time.")
+        arg_parser.add_option(
+          '--verbosity', action='store', type=int, dest='verbosity', default=0,
+          help="In combination with --build-repolist, print progress "
+          "information. VERBOSITY > 0 causes all found repos to be printed "
+          "to screen as they are found. VERBOSITY > 1 causes all traversed "
+          "directories to be printed to screen.")
+        arg_parser.add_option(
+          '--append', action='store_true', dest='append',
+          default=False, help="In combination with --build-repolist, append "
+          "to REPOLIST instead of overwriting it.")
+        options, args = arg_parser.parse_args(argv)
+    if len(args) > 2:
+        arg_parser.error("You cannot give more than one PATH argument")
+    if len(args) > 1:
+        if not os.path.isdir(args[1]):
+            arg_parser.error("PATH must be an existing directory")
+
+    repo_list = []
+
+    if options.build_repolist:
+        if len(args) > 1:
+            repo_list = get_git_repos(args[1], options.verbosity)
+        else:
+            arg_parser.error("You must give PATH along with the "
+                             "--build-repolist options")
+        try:
+            print "Writing list of git repos to %s" % options.repolist
+            file_mode = 'w'
+            if options.append:
+                file_mode = 'a'
+            with open(options.repolist, file_mode) as out_fh:
+                for repo_path in repo_list:
+                    print >> out_fh, repo_path
+            print "Done"
+            return 0
+        except IOError as msg:
+            print "ERROR: %s" % msg
+            return 1
+        except OSError as msg:
+            print "ERROR: %s" % msg
+            return 1
+
+    # if not building repolist, continue with normal procedure
+    try:
+        if os.path.isfile(options.repolist):
+            with open(options.repolist) as fh:
+                repo_list = fh.readlines()
+        else:
+            if len(args) > 1:
+                repo_list = get_git_repos(args[1])
+            else:
+                arg_parser.error("repolist does not exists. "
+                                 "You must give PATH")
+    except IOError as msg:
+        print "ERROR: %s" % msg
+
+    # process all repos in repo_list
+    if len(args) > 1:
+        path = os.path.abspath(args[1])
+        for repo in repo_list:
+            repo = os.path.abspath(repo.strip())
+            if path in repo:
+                show_repo(repo, options)
+    else:
+        for repo in repo_list:
+            show_repo(repo.strip(), options)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+
