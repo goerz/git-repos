@@ -8,9 +8,23 @@ This code is licensed under the [GPL](http://www.gnu.org/licenses/gpl.html)
 
 The purpose of the `git repos` script is to give you an overview of all the git
 repositories on your hard drive. Specifically, it will show you which
-repositories have local modifications, are out of sync with their remote,
-unmerged branches, or stashes. The output is colored to highlight such
+repositories have local modifications, unmerged branches, stashes, or are out of
+sync with their remote. The output is colored to highlight such
 potential problems.
+
+For each repository, the output will look something like this:
+
+    /home/work/qdyn
+        The repository has uncommitted changes
+        The repository has stashed changes: 1 stash(es)
+            stash@{0}: On master: Working on Wigner
+        1.0dev         :  unmerged
+        abacus         :  unmerged    [origin/abacus]
+        debug          :  unmerged
+        master         :  merged      [origin/master: behind 9]
+        newton         :  merged
+        overlaps       :  unmerged    [origin/overlaps: behind 6]
+        parametrization:  merged      [origin/parametrization: behind 2]
 
 Since it can take a while to traverse your entire disk searching for git
 repositories, the script prefers to read a list of all available repositories
@@ -24,13 +38,13 @@ Note that `git-repos` will not look for bare repositories.
 
 ## Install ##
 
-Store the script anywhere in your `$PATH`
+Store the script anywhere in your `$PATH`.
 
 ## Dependencies ##
 
 * The script depends only on the [git][1] executable, which must be in your
-  PATH. It has been tested against git version 1.8.3.4, but it should also work
-  with moderately older and all newer versions. If it doesn't, let me know.
+  `$PATH`. It has been tested against git version 1.8.3.4, but it should also
+  work with moderately older and all newer versions. If it doesn't, let me know.
 
 [1]: http://git-scm.com/
 
