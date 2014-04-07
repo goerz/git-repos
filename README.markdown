@@ -58,27 +58,27 @@ Store the script anywhere in your `$PATH`.
     subfolders of PATH.
 
     Options:
-    -h, --help            show this help message and exit
-    --no-color            Do not use color in output
-    --fetch               Perform a fetch on each repository
-    --status              Run 'git status' on unclean repositories
-    --all                 Report about all found git repos. By default, only
+      -h, --help            show this help message and exit
+      --no-color            Do not use color in output
+      --fetch               Perform a fetch on each repository
+      --status              Run 'git status' on unclean repositories
+      --all                 Report about all found git repos. By default, only
                             repos that are not clean, have stashes, local unmerged
                             branches, or are out of sync, are reported
-    --remote              Disregard all repos that do not have least one remote
+      --remote              Disregard all repos that do not have least one remote
                             defined
-    --local               Disregard all repos that have any remote defined
-    --repolist=REPOLIST   Textfile that contains the path of all your git
+      --local               Disregard all repos that have any remote defined
+      --repolist=REPOLIST   Textfile that contains the path of all your git
                             repositories Defaults to /Volumes/HOME/goerz/.gitrepos
-    --build-repolist      Overwrite the REPOLIST (see --repolist option) with a
+      --build-repolist      Overwrite the REPOLIST (see --repolist option) with a
                             list of all git repos that are subfolders of PATH.
                             Exit after the repolist has been written. This might
                             take a long time.
-    --verbosity=VERBOSITY
+      --verbosity=VERBOSITY
                             In combination with --build-repolist, print progress
                             information. VERBOSITY > 0 causes all found repos to
                             be printed to screen as they are found. VERBOSITY > 1
                             causes all traversed directories to be printed to
                             screen.
-    --append              In combination with --build-repolist, append to
+      --append              In combination with --build-repolist, append to
                             REPOLIST instead of overwriting it.
