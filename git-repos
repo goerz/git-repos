@@ -363,10 +363,10 @@ def main(argv=None):
 
     # process all repos in repo_list
     if len(args) > 1:
-        path = os.path.abspath(args[1])
+        path = os.path.abspath(args[1]) + os.sep
         for repo in repo_list:
             repo = os.path.abspath(repo.strip())
-            if path in repo:
+            if path in repo+os.sep:
                 show_repo(repo, options)
     else:
         for repo in repo_list:
