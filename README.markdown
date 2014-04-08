@@ -45,8 +45,8 @@ Store the script anywhere in your `$PATH`.
 * The script depends only on the [git][1] executable, which must be in your
   `$PATH`. It has been tested against git version 1.8.3.4, but it should also
   work with moderately older and all newer versions. If it doesn't, let me know.
-* Python version 2.7 or greater is required (for `subproccess.check_output`
-  routine)
+* Python version 2.7 is required (for `subproccess.check_output` routine).
+  Python 3.x is not supported.
 
 [1]: http://git-scm.com/
 

@@ -79,15 +79,15 @@ class ColorPrinter:
         """ Print str in the given color """
         try:
             # color can be the name of one of the class attributes ...
-            print getattr(self, color) + string + self.ENDC
+            print(getattr(self, color) + string + self.ENDC)
         except AttributeError:
             if color.strip() == "":
-                print string
+                print(string)
             elif color[0] == '\033':
                 # ... or it can be an attribute directly
-                print color + string + self.ENDC
+                print(color + string + self.ENDC)
             else:
-                print string
+                print(string)
 
 
 def get_git_repos(path, verbosity=0):
@@ -102,12 +102,12 @@ def get_git_repos(path, verbosity=0):
         for directory in os.listdir(path):
             dir_full_path = os.path.join(path, directory)
             if (verbosity > 1):
-                print dir_full_path
+                print(dir_full_path)
             if os.path.isdir(dir_full_path):
                 if directory == ".git":
                     git_dirs.append(os.path.abspath(path))
                     if verbosity > 0:
-                        print "Found %s" % os.path.abspath(path)
+                        print("Found %s" % os.path.abspath(path))
                 else:
                     git_dirs += get_git_repos(dir_full_path)
         return git_dirs
@@ -349,20 +349,20 @@ def main(argv=None):
             arg_parser.error("You must give PATH along with the "
                              "--build-repolist options")
         try:
-            print "Writing list of git repos to %s" % options.repolist
+            print("Writing list of git repos to %s" % options.repolist)
             file_mode = 'w'
             if options.append:
                 file_mode = 'a'
             with open(options.repolist, file_mode) as out_fh:
                 for repo_path in repo_list:
-                    print >> out_fh, repo_path
-            print "Done"
+                    out_fh.write(repo_path + "\n")
+            print("Done")
             return 0
         except IOError as msg:
-            print "ERROR: %s" % msg
+            print("ERROR: %s" % msg)
             return 1
         except OSError as msg:
-            print "ERROR: %s" % msg
+            print("ERROR: %s" % msg)
             return 1
 
     # if not building repolist, continue with normal procedure
@@ -377,7 +377,7 @@ def main(argv=None):
                 arg_parser.error("repolist does not exists. "
                                  "You must give PATH")
     except IOError as msg:
-        print "ERROR: %s" % msg
+        print("ERROR: %s" % msg)
 
     # process all repos in repo_list
     if len(args) > 1:
