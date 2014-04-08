@@ -81,7 +81,9 @@ class ColorPrinter:
             # color can be the name of one of the class attributes ...
             print getattr(self, color) + string + self.ENDC
         except AttributeError:
-            if color[0] == '\033':
+            if color.strip() == "":
+                print string
+            elif color[0] == '\033':
                 # ... or it can be an attribute directly
                 print color + string + self.ENDC
             else:
