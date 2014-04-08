@@ -32,7 +32,7 @@ from a file, `~/.gitrepos` by default. You may build this list by using the
 `--build-repolist` option. Alternatively, you could run cron jobs that do
 something like the following:
 
-    /usr/bin/find $HOME -type d -name .git | /usr/bin/sed 's/\/\.git$//' > $HOME/.gitrepos
+    find $HOME -type d -name .git | sed 's/\/\.git$//' > $HOME/.gitrepos
 
 Note that `git-repos` will not look for bare repositories.
 
