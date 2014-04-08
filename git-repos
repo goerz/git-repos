@@ -42,6 +42,7 @@ BRANCH_VV_RX = re.compile(r'''
         (\[.*?\])?         # group 2: tracking branch info
         .*''', re.X)
 
+LAST_PRINTED = True
 
 class ColorPrinter:
     """ ANSI color code table """
@@ -112,6 +113,7 @@ def get_git_repos(path, verbosity=0):
 def show_repo(repo, options):
     """ Show a summary of the repo at the given path """
     out = ColorPrinter()
+    global LAST_PRINTED
     if options.no_color:
         out.disable_color()
     cwd = os.getcwd()
@@ -189,7 +191,7 @@ def show_repo(repo, options):
 
     # output
 
-    print_output = False # should we print anything at all?
+    print_output = False # should we print any details?
     if not repo_is_clean:                print_output = True
     if repo_has_stashes:                 print_output = True
     if repo_out_of_sync:                 print_output = True
@@ -203,6 +205,7 @@ def show_repo(repo, options):
 
     if print_output:
 
+        LAST_PRINTED = True
         out_fmt1 = "    {:<%d}:  {:10}" % len_branchnames
         out_fmt2 = "    {:<%d}:  {:10}  {}" % len_branchnames
 
@@ -264,6 +267,13 @@ def show_repo(repo, options):
             except CalledProcessError as msg:
                 out.put('FAIL', " ERROR for %s: %s" % (repo, msg))
 
+    else: # do not print details
+
+        if LAST_PRINTED:
+            out.put('NORMAL', "")
+        LAST_PRINTED = False
+        out.put('HEADER', repo)
+
     os.chdir(cwd)
 
 
@@ -287,7 +297,8 @@ def main(argv=None):
           '--all', action='store_true', dest='all',
           default=False, help="Report about all found git repos. By default, "
           "only repos that are not clean, have stashes, local unmerged "
-          "branches, or are out of sync, are reported")
+          "branches, or are out of sync, have any details reported about "
+          "them.")
         arg_parser.add_option(
           '--remote', action='store_true', dest='remote',
           default=False, help="Disregard all repos that do not have "

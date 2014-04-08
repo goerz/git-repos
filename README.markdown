@@ -45,6 +45,8 @@ Store the script anywhere in your `$PATH`.
 * The script depends only on the [git][1] executable, which must be in your
   `$PATH`. It has been tested against git version 1.8.3.4, but it should also
   work with moderately older and all newer versions. If it doesn't, let me know.
+* Python version 2.7 or greater is required (for `subproccess.check_output`
+  routine)
 
 [1]: http://git-scm.com/
 
@@ -64,7 +66,8 @@ Store the script anywhere in your `$PATH`.
       --status              Run 'git status' on unclean repositories
       --all                 Report about all found git repos. By default, only
                             repos that are not clean, have stashes, local unmerged
-                            branches, or are out of sync, are reported
+                            branches, or are out of sync, have any details
+                            reported about them.
       --remote              Disregard all repos that do not have least one remote
                             defined
       --local               Disregard all repos that have any remote defined
