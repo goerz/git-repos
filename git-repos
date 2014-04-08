@@ -130,6 +130,7 @@ def show_repo(repo, options):
     merged   = [] # list of all merged branch names
     unmerged = [] # list of all unmerged branch names
     stashes  = [] # list of all stashes
+    tracking_info = {} # dict branchname => tracking status
     len_branchnames = 0 # length of longest branch name
     repo_is_clean                    = True
     repo_has_stashes                 = False
@@ -139,52 +140,52 @@ def show_repo(repo, options):
 
     # gather info:
     try:
-        # 1) name of all branches
-        branches = check_output('git branch', shell=True).split()
-        branches.remove('*')
-        # 2) which branches are merged/unmerged
-        unmerged = check_output('git branch --no-merged', shell=True).split()
-        merged = check_output('git branch --merged', shell=True).split()
-        # 3) status of each branch in relation to its tracking branch
-        tracking_info = {}
+        # 1) name/tracking info of all branches
         branch_vv = check_output('git branch -vv', shell=True).split("\n")
-        # 4) working directory status
-        cmd = "git diff-index --quiet HEAD --ignore-submodules"
-        code = call(cmd, shell=True)
-        # 5) stashes
-        stashes = [stash.strip() for stash in
-                   check_output( "git stash list", shell=True).split("\n")
-                   if stash.strip() != ""]
-
-        if code != 0:
-            repo_is_clean = False
         for line in branch_vv:
             if (line.strip() == ''):
                 continue
             try:
                 branch, info = BRANCH_VV_RX.match(line).groups()
+                branches.append(branch)
             except AttributeError:
                 continue
                 #raise Exception("line '%s' did not match BRANCH_VV_RX" % line)
             if len(branch) > len_branchnames:
                 len_branchnames = len(branch)
-            if branch in branches:
-                if not info is None:
-                    tracking_info[branch] = info
-                    repo_has_remote = True
-                    if 'behind' in info:
-                        repo_out_of_sync = True
-                    if 'ahead' in info:
-                        repo_out_of_sync = True
-            else:
-                raise Exception("Unexpected branch name")
+            if not info is None:
+                tracking_info[branch] = info
+                repo_has_remote = True
+                if 'behind' in info:
+                    repo_out_of_sync = True
+                if 'ahead' in info:
+                    repo_out_of_sync = True
+        if repo_has_remote:
+            if options.local:
+                os.chdir(cwd)
+                return
+        else: # repo has not remote
+            if options.remote:
+                os.chdir(cwd)
+                return
+        # 2) which branches are merged/unmerged
+        unmerged = check_output('git branch --no-merged', shell=True).split()
+        merged = check_output('git branch --merged', shell=True).split()
+        # 3) working directory status
+        cmd = "git diff-index --quiet HEAD --ignore-submodules"
+        code = call(cmd, shell=True)
+        if code != 0:
+            repo_is_clean = False
+        # 4) stashes
+        stashes = [stash.strip() for stash in
+                   check_output( "git stash list", shell=True).split("\n")
+                   if stash.strip() != ""]
+        if len(stashes) > 0:
+            repo_has_stashes = True
+
     except CalledProcessError as msg:
         out.put('FAIL', " ERROR for %s: %s" % (repo, msg))
         return
-    if len(unmerged) > 0:
-        repo_has_unmerged_branches = True
-    if len(stashes) > 0:
-        repo_has_stashes = True
 
     # output
 
