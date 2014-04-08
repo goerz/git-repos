@@ -98,18 +98,22 @@ def get_git_repos(path, verbosity=0):
         If verbosity is > 1, print all traversed paths to the screen
     """
     git_dirs = []
-    for directory in os.listdir(path):
-        dir_full_path = os.path.join(path, directory)
-        if (verbosity > 1):
-            print dir_full_path
-        if os.path.isdir(dir_full_path):
-            if directory == ".git":
-                git_dirs.append(os.path.abspath(path))
-                if verbosity > 0:
-                    print "Found %s" % os.path.abspath(path)
-            else:
-                git_dirs += get_git_repos(dir_full_path)
-    return git_dirs
+    try:
+        for directory in os.listdir(path):
+            dir_full_path = os.path.join(path, directory)
+            if (verbosity > 1):
+                print dir_full_path
+            if os.path.isdir(dir_full_path):
+                if directory == ".git":
+                    git_dirs.append(os.path.abspath(path))
+                    if verbosity > 0:
+                        print "Found %s" % os.path.abspath(path)
+                else:
+                    git_dirs += get_git_repos(dir_full_path)
+        return git_dirs
+    except OSError:
+        # occurs e.g. for "Permission denied". We simply skip such directories
+        return git_dirs
 
 
 def show_repo(repo, options):
