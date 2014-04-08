@@ -27,11 +27,28 @@ are subfolders of PATH. If the REPOLIST file does not exists, find all repos
 that are subfolders of PATH.
 """
 
-from subprocess import check_output, CalledProcessError, call
 from optparse import OptionParser
 import os
 import re
 import sys
+import subprocess as sp
+# The 'check_output' routine in subprocess was added in Python 2.7. If it's not
+# available, we'll have to add it here
+if "check_output" not in dir( sp ): # duck punch it in!
+    def f(*popenargs, **kwargs):
+        if 'stdout' in kwargs:
+            raise ValueError('stdout arg not allowed, will be overridden.')
+        process = sp.Popen(stdout=sp.PIPE, *popenargs, **kwargs)
+        output, unused_err = process.communicate()
+        retcode = process.poll()
+        if retcode:
+            cmd = kwargs.get("args")
+            if cmd is None:
+                cmd = popenargs[0]
+            raise sp.CalledProcessError(retcode, cmd)
+        return output
+    sp.check_output = f
+
 
 REPO_LIST = os.path.join(os.environ['HOME'], '.gitrepos')
 
@@ -131,7 +148,7 @@ def show_repo(repo, options):
 
     if options.fetch:
         cmd = "git fetch --all -q 2>/dev/null"
-        code = call(cmd, shell=True)
+        code = sp.call(cmd, shell=True)
 
     # repo info
     branches = [] # list of a all branch names
@@ -149,7 +166,7 @@ def show_repo(repo, options):
     # gather info:
     try:
         # 1) name/tracking info of all branches
-        branch_vv = check_output('git branch -vv', shell=True).split("\n")
+        branch_vv = sp.check_output('git branch -vv', shell=True).split("\n")
         for line in branch_vv:
             if (line.strip() == ''):
                 continue
@@ -177,21 +194,22 @@ def show_repo(repo, options):
                 os.chdir(cwd)
                 return
         # 2) which branches are merged/unmerged
-        unmerged = check_output('git branch --no-merged', shell=True).split()
-        merged = check_output('git branch --merged', shell=True).split()
+        unmerged = sp.check_output(
+                   'git branch --no-merged', shell=True).split()
+        merged = sp.check_output('git branch --merged', shell=True).split()
         # 3) working directory status
         cmd = "git diff-index --quiet HEAD --ignore-submodules"
-        code = call(cmd, shell=True)
+        code = sp.call(cmd, shell=True)
         if code != 0:
             repo_is_clean = False
         # 4) stashes
         stashes = [stash.strip() for stash in
-                   check_output( "git stash list", shell=True).split("\n")
+                   sp.check_output( "git stash list", shell=True).split("\n")
                    if stash.strip() != ""]
         if len(stashes) > 0:
             repo_has_stashes = True
 
-    except CalledProcessError as msg:
+    except sp.CalledProcessError as msg:
         out.put('FAIL', " ERROR for %s: %s" % (repo, msg))
         return
 
@@ -212,8 +230,8 @@ def show_repo(repo, options):
     if print_output:
 
         LAST_PRINTED = True
-        out_fmt1 = "    {:<%d}:  {:10}" % len_branchnames
-        out_fmt2 = "    {:<%d}:  {:10}  {}" % len_branchnames
+        out_fmt1 = "    {0:<%d}:  {1:10}" % len_branchnames
+        out_fmt2 = "    {0:<%d}:  {1:10}  {2}" % len_branchnames
 
         out.put('NORMAL', "")
         out.put('HEADER', repo)
@@ -267,10 +285,10 @@ def show_repo(repo, options):
         if not repo_is_clean and options.status:
             try:
                 if options.no_color:
-                    call("git -c color.status=false status", shell=True)
+                    sp.call("git -c color.status=false status", shell=True)
                 else:
-                    call("git status", shell=True)
-            except CalledProcessError as msg:
+                    sp.call("git status", shell=True)
+            except sp.CalledProcessError as msg:
                 out.put('FAIL', " ERROR for %s: %s" % (repo, msg))
 
     else: # do not print details
