@@ -118,9 +118,9 @@ def get_git_repos(path, verbosity=0):
     try:
         for directory in os.listdir(path):
             dir_full_path = os.path.join(path, directory)
-            if (verbosity > 1):
-                print(dir_full_path)
             if os.path.isdir(dir_full_path):
+                if (verbosity > 1):
+                    print(dir_full_path)
                 if directory == ".git":
                     git_dirs.append(os.path.abspath(path))
                     if verbosity > 0:
