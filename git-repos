@@ -187,13 +187,16 @@ def show_repo(repo, options):
                 if 'ahead' in info:
                     repo_out_of_sync = True
         if repo_has_remote:
+            url_match = False # does any of the remotes have a URL we want?
             remote_lines = sp.check_output('git remote -v', shell=True)
             for line in remote_lines.split("\n"):
                 if line.strip().endswith("(fetch)"):
                     components = line.split()
                     remote_name, remote_url = components[0], components[1]
                     remotes[remote_name] = remote_url
-            if options.local:
+                    if options.remote_url in remote_url:
+                        url_match = True
+            if options.local or not url_match:
                 os.chdir(cwd)
                 return
         else: # repo has not remote
@@ -339,6 +342,10 @@ def main(argv=None):
           default=False, help="Disregard all repos that do not have "
           "least one remote defined")
         arg_parser.add_option(
+          '--remote-url', action='store', dest='remote_url',
+          default="", help="Disregard all repos that do not have "
+          "a remote containing the given URL. Implies --remote.")
+        arg_parser.add_option(
           '--local', action='store_true', dest='local',
           default=False, help="Disregard all repos that have any "
           "remote defined")
@@ -368,6 +375,8 @@ def main(argv=None):
     if len(args) > 1:
         if not os.path.isdir(args[1]):
             arg_parser.error("PATH must be an existing directory")
+    if options.remote_url != "":
+        options.remote=True
 
     repo_list = []
 
