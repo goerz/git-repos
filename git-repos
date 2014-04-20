@@ -155,6 +155,7 @@ def show_repo(repo, options):
     merged   = [] # list of all merged branch names
     unmerged = [] # list of all unmerged branch names
     stashes  = [] # list of all stashes
+    remotes       = {} # dict remote name => remote url
     tracking_info = {} # dict branchname => tracking status
     len_branchnames = 0 # length of longest branch name
     repo_is_clean                    = True
@@ -186,6 +187,12 @@ def show_repo(repo, options):
                 if 'ahead' in info:
                     repo_out_of_sync = True
         if repo_has_remote:
+            remote_lines = sp.check_output('git remote -v', shell=True)
+            for line in remote_lines.split("\n"):
+                if line.strip().endswith("(fetch)"):
+                    components = line.split()
+                    remote_name, remote_url = components[0], components[1]
+                    remotes[remote_name] = remote_url
             if options.local:
                 os.chdir(cwd)
                 return
@@ -235,6 +242,10 @@ def show_repo(repo, options):
 
         out.put('NORMAL', "")
         out.put('HEADER', repo)
+
+        for remote_name, remote_url in remotes.items():
+            out.put('NORMAL', "remote %s: %s" % (remote_name, remote_url))
+
         if not repo_is_clean:
             out.put('WARN', "    The repository has uncommitted changes")
         if repo_has_stashes:
