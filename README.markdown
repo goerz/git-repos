@@ -69,6 +69,9 @@ Store the script anywhere in your `$PATH`.
                             reported about them.
       --remote              Disregard all repos that do not have least one remote
                             defined
+      --remote-url=REMOTE_URL
+                            Disregard all repos that do not have a remote
+                            containing the given URL. Implies --remote.
       --local               Disregard all repos that have any remote defined
       --repolist=REPOLIST   Textfile that contains the path of all your git
                             repositories Defaults to /Volumes/HOME/goerz/.gitrepos
